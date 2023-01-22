@@ -1,1 +1,805 @@
-KW2W1iLD+1VtPLuhd2oLIs82RM6E+ymmDEo/OWr+N46/wQsBgYCGGZlk/kHxVuXBWkE6WJ5jJEBetrWkvWWZ4jMcKMAeayUm0O4fgKEAmm27sTZm+a40b427gpUTGBm7cRu6iG1tA0n4DQEQ2iQZuq7JqG4EATy7vBm/vvA6PfmUJ2T7uetVf+f4YoQH5/bEUJIcQdPwI3qHm14EfG/BtiVfFoCadd7QGETr3NMtu0TyXAkl4mUs86+0lV+7MZAoDVAHE+cf4ZIey3cXkIFYLwNGcJR8d7N9hIs/NtXesMzQT11phPCLl5TXdz97V+4l9scBfkzsF6P1mWVAm11j7C96d9p8nOMqOeHqNB9ZYn6kkkOJE1WUsUBRjYfctbXsKcYI6RodvqErwjVBbV79ZrKwlORXb4fg2FyWLrGXbxmGYfye1cM5bkiUxNtfEOdSAiHWyWG8MWHHGtP0nMIpcJbphlLvZ6MDmRPDJFByb14A6bKGtoZvbajtl7YMyujEUzimoHk3OrKp0c5PvNicdxHxIM7JnLyLx7tMkSQwA4d7+ik/76BpLyhqjUTWzHWdwtM7yKR05KWwy/aQKkoGp4y8ozsOHrIdJZy3D/+Zk3Sy+fHq9ci1eAmW5VhMG35lZ08RtiRoStPwOrts9qr/bfJYt1oyYqnsUtCpJlVkjYt4zR0PJ+aCYHpp3gQ5jhsBS8Tls285fG4AQAitVPMLRS9inEsvbsPee+ai1WG/pA6cbxyBHlL5T7yJme4Xc9etq96CFMdkCXELdU6nHwMe1YlTHYaU1GjrGcAv1H+/cv51uaNQEO1MiqHT1gBPhNbfA69qdiDH1WaJNFerhfuHWNe4OY1uNeStJUJoVAhehAWwTFtLZcaKR88lk7Y5+jALokV9Jkgxpih3k4ov7ms/cATjap2WT4lMxCgl7mVzW+2pbwMFqRfsPxSBj+0DDO9/mxq2N7Eu+9hKFj9RVyFLG6gY2CaCTW5GP+7XnEjWd0zYW2DlxuOov2EtINWykrFMpwihMLcBwN4YikRdpMAkTDoe4F/cRJln6weW/qe9qafZn7lK7sMRDjGzd5MiCBwpxezMovZbBYyMoch3xxriV8oq2vCOBB5R/pRyvpywwV80YJb9ShXVVFPBu7ByNePg3C85H0s3oSBNdZ+FP5Te2g==
+# @title #<b>👈🏻 Run This Cell
+
+#@markdown This may take some time. So, you can have a coffee until this finishes up.
+
+import os, uuid, IPython, base64
+import ipywidgets as widgets
+import re, subprocess, time, json
+from IPython.display import HTML, clear_output
+from google.colab import output
+from google.colab.output import eval_js
+
+
+class MakeButton(object):
+  def __init__(self, title, callback, style):
+    self._title = title
+    self._callback = callback
+    self._style = style
+  def _repr_html_(self):
+    callback_id = 'button-' + str(uuid.uuid4())
+    output.register_callback(callback_id, self._callback)
+    if self._style != "":
+      style_html = "p-Widget jupyter-widgets jupyter-button widget-button mod-" + self._style
+    else:
+      style_html = "p-Widget jupyter-widgets jupyter-button widget-button"
+    template = """<button class="{style_html}" id="{callback_id}">{title}</button>
+        <script>
+          document.querySelector("#{callback_id}").onclick = (e) => {{
+            google.colab.kernel.invokeFunction('{callback_id}', [], {{}})
+            e.preventDefault();
+          }};
+        </script>"""
+    html = template.format(title=self._title, callback_id=callback_id, style_html=style_html)
+    return html
+
+
+def GetInput():
+  clear_output(wait=True)
+  index_code.value = ""
+  display(HTML("<h3 style=\"font-family:Roboto;color:#056AD2;\">Copy and paste your index code in the text box. (<a href=\"https://github.com/cheems/goindex-extended\" target=\"_blank\">More Info: Wiki/folder-id-list-generator</a>)</h3>"), HTML("<br>"), index_code)
+  display(HTML("<br>"))
+  display(MakeButton("Continue", main, "primary"))
+
+
+def AssignValues():
+  global loading_animation, waiting_animation, crypt_secret
+  # clear_output(wait=True)
+  # ClientId, ClientSecret, RefreshToken = GetRequiredValues(index_code.value)
+  if not index_code.value:
+    display(HTML("<br>"), HTML("<h3 style=\"font-family:'Roboto Mono', monospace;color:red;\">No code is provided!!!</h3>"), HTML("<br>"))
+    crash # dumb but it works :)
+  index_code.value = "\n".join(index_code.value.split("\n")[:100])
+  ClientId, ClientSecret, RefreshToken, CryptSecret = GetRequiredValues(index_code.value)
+  if (ClientId == "" or ClientSecret == "") or RefreshToken == "":
+    display(HTML("<br>"), HTML("<h3 style=\"font-family:'Roboto Mono', monospace;color:red;\">Make Sure \"client_id\", \"client_secret\" and \"refresh_token\" are present in the code!</h3>"), HTML("<br>"))
+    crash # dumb but it works :)
+  clear_output(wait=True)
+  display(widgets.Image(value=loading_animation, width=100, height=100))
+  clear_output(wait=True)
+  ShowRetrieved(ClientId, ClientSecret, RefreshToken, CryptSecret)
+  display(widgets.Image(value=loading_animation, width=100, height=100))
+  Roots = GetRoots(index_code.value)
+  clear_output(wait=True)
+  ShowRetrieved(ClientId, ClientSecret, RefreshToken, CryptSecret)
+  if not crypt_secret or len(crypt_secret) < 32:
+    crypt_secret = RefreshToken[3:35]
+  if len(crypt_secret) > 32:
+    crypt_secret = crypt_secret[:32]
+  for Root in Roots:
+    display(HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">[Drive 0{Roots.index(Root)+1}]</p>"))
+    display(HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Name: <span style=\"color:#056AD2;\">{Root.get('name')}</span></p>"))
+    display(HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Id: <span style=\"color:#056AD2;\">{Root.get('id')}</span></p>"), HTML("<br>"))    
+  display(widgets.Image(value=waiting_animation, width=100, height=100))
+  time.sleep(6)
+
+
+def ShowRetrieved(ClientId, ClientSecret, RefreshToken, CryptSecret):
+  display(HTML("<h3 style=\"font-family:'Roboto Mono', monospace;\">Credentials</h3>"))
+  display(HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Client Id: <span style=\"color:#056AD2;\">{ClientId}</span></p>"))
+  display(HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Client Secret: <span style=\"color:#056AD2;\">{'*'*len(ClientSecret)}</span></p>"))
+  display(HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Refresh Token: <span style=\"color:#056AD2;\">{'*'*len(RefreshToken)}</span></p>"))
+  if CryptSecret and len(CryptSecret) >= 32:
+    display(HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Crypt Secret: <span style=\"color:#056AD2;\">{'*'*len(CryptSecret)}</span></p>"))
+  elif CryptSecret and len(CryptSecret) < 32:
+    display(HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Crypt Secret: <span style=\"color:#056AD2;\">Provided Secret is shorter than the required length(32 chars). First 32 chars from Refresh Token will be used.</span></p>"))
+  else:
+    display(HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Crypt Secret: <span style=\"color:#056AD2;\">Not Provided. First 32 chars from Refresh Token will be used.</span></p>"))
+  display(HTML("<br>"), HTML("<h3 style=\"font-family:'Roboto Mono', monospace;\">Roots</h3>"))
+
+
+def GetRequiredValues(IndexCodeValue):
+  global client_id, client_secret, refresh_token, crypt_secret
+  values = ['"client_id"', '"client_secret"', '"refresh_token"', '"crypt_secret"']
+  IndexCodeList = IndexCodeValue.split("\n")
+  pattern = re.compile('([\s\S]*):([\s\S]*)"([\s\S]*)"')
+  for value in values:
+    for line in IndexCodeList:
+      if value in line.strip():
+        if value == values[0]:
+          correct_line = pattern.search(line)
+          if correct_line:
+            client_id = correct_line.group(3)
+          break
+        elif value == values[1]:
+          correct_line = pattern.search(line)
+          if correct_line:
+            client_secret = correct_line.group(3)
+          break
+        elif value == values[2]:
+          correct_line = pattern.search(line)
+          if correct_line:
+            refresh_token = correct_line.group(3)
+          break
+        elif value == values[3]:
+          correct_line = pattern.search(line)
+          if correct_line:
+            crypt_secret = correct_line.group(3)
+          break
+  return client_id, client_secret, refresh_token, crypt_secret
+
+
+def GetRoots(IndexCodeValue):
+  global roots
+  root_pattern = re.compile('"roots"([\s\S]*):([\s\S]*)\[([\s\S]*)\],([\s\S]*)=================== END OF ROOTS ===================')
+  correct_roots = root_pattern.search(IndexCodeValue)
+  roots = "[" + correct_roots.group(3) + "]"
+  temp_list=[]
+  for root in roots.split("}"):
+    temp_list_2 = []
+    for line in root.split("\n"):
+      if ("name" in line or "id" in line) and "username" not in line:
+        temp_list_2.append(line)
+    temp_item = "\n".join(temp_list_2)
+    if "name" in temp_item or "id" in temp_item:
+      temp_list.append(temp_item)
+  roots = temp_list
+  temp_list = []
+  id_name_pattern = re.compile('id([\s\S]*):([\s\S]*)"([\s\S]*)"([\s\S]*),([\s\S]*)name([\s\S]*):([\s\S]*)"([\s\S]*)"')
+  for line in roots:
+    id_name_exist = id_name_pattern.search(line)
+    if id_name_exist:
+      if id_name_exist.group(3) != "drive_id":
+        temp_list.append({"id": id_name_exist.group(3), "name": id_name_exist.group(8)})
+  roots = temp_list
+  return roots
+
+
+def GetAccessToken():
+  global client_id, client_secret, refresh_token, access_token, request_access_token, loading_animation
+  clear_output(wait=True)
+  display(HTML(f"<h3 style=\"font-family:'Roboto Mono', monospace;\">Getting Access Token...</h3>"))
+  display(widgets.Image(value=loading_animation, width=100, height=100))
+  Request = request_access_token.format(client_id, client_secret, refresh_token)
+  Response = SendRequest(Request, "access_token")
+  access_token = Response.get("access_token")
+  clear_output(wait=True)
+  display(widgets.Image(value=loading_animation, width=100, height=100))
+  time.sleep(3)
+
+
+def GetFolders():
+  global access_token, request_meta_data, roots, folders, temp_shortcut_ids, loading_animation, waiting_animation
+  clear_output(wait=True)
+  DisplayList = []
+  Title = HTML(f"<h3 style=\"font-family:'Roboto Mono', monospace;\">Checking for Folders in Roots...</h3>")
+  LineBreak = HTML("<br>")
+  LoadingAnimation = widgets.Image(value=loading_animation, width=100, height=100)
+  DisplayList.extend([Title, LineBreak])
+  display(Title, LineBreak)
+  for root in roots:
+    RootNumber = HTML(f"<h4 style=\"font-family:'Roboto Mono', monospace;\">[Disk 0{roots.index(root)+1}]</h4>")
+    RootName = HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Name: <span style=\"color:#056AD2;\">{root.get('name')}</span></p>")
+    RootId = HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Id: <span style=\"color:#056AD2;\">{root.get('id')}</span></p>")
+    display(RootNumber)
+    display(LoadingAnimation)
+    DisplayList.extend([RootNumber, RootName, RootId])
+    Request = request_meta_data.format(root.get("id"), access_token)
+    time.sleep(2)
+    Response = SendRequest(Request, "id")
+    if Response.get("parents"):
+      RootType = HTML("<p style=\"font-family:'Roboto Mono', monospace;\">Type: <span style=\"color:#056AD2;\">Folder</span></p>")
+      folders.append(root)
+    else:
+      if Response.get("name") == "Drive" or Response.get("name") == "My Drive":
+        RootType = HTML("<p style=\"font-family:'Roboto Mono', monospace;\">Type: <span style=\"color:#056AD2;\">Drive</span></p>")
+      else:
+        RootType = HTML("<p style=\"font-family:'Roboto Mono', monospace;\">Type: <span style=\"color:#056AD2;\">Shared Folder(This will be added later)</span></p>")
+        temp_shortcut_ids.append({"id": Response.get("id"), "name": root.get("name"), "shortcut_ids": [{"name": Response.get("name"), "id": Response.get("id")}], "folder_ids": []})
+    DisplayList.extend([RootType, LineBreak])
+    clear_output(wait=True)
+    for item in DisplayList:
+      display(item)
+  display(widgets.Image(value=waiting_animation, width=100, height=100))
+  time.sleep(6)
+
+
+def FindDrives():
+  global access_token, request_meta_data, folders, loading_animation, waiting_animation
+  clear_output(wait=True)
+  DisplayList = []
+  Title = HTML(f"<h3 style=\"font-family:'Roboto Mono', monospace;\">Getting Parent Drives...</h3>")
+  LineBreak = HTML("<br>")
+  LoadingAnimation = widgets.Image(value=loading_animation, width=100, height=100)
+  DisplayList.extend([Title, LineBreak])
+  display(Title, LineBreak)
+  for i in range(len(folders)):
+    FolderNumber = HTML(f"<h4 style=\"font-family:'Roboto Mono', monospace;\">[Folder 0{i+1}]</h4>")
+    FolderName = HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Name: <span style=\"color:#056AD2;\">{folders[i].get('name')}</span></p>")
+    FolderId = HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Id: <span style=\"color:#056AD2;\">{folders[i].get('id')}</span></p>")
+    display(FolderNumber)
+    display(LoadingAnimation)
+    DisplayList.extend([FolderNumber, FolderName, FolderId])
+    folders[i] = FindDriveIdByFolder(folders[i])
+    if folders[i].get("parent_drive").get("name") == "Drive":
+      FolderParentType = HTML("<p style=\"font-family:'Roboto Mono', monospace;\">Parent Type: <span style=\"color:#056AD2;\">Shared Drive</span></p>")
+    else:
+      folders[i].get("parent_drive")["id_alias"] = "root"
+      FolderParentType = HTML("<p style=\"font-family:'Roboto Mono', monospace;\">Parent Type: <span style=\"color:#056AD2;\">My Drive</span></p>")
+    if folders[i].get("parent_drive").get("id_alias"):
+      FolderParentId = HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Parent Id: <span style=\"color:#056AD2;\">{folders[i].get('parent_drive').get('id_alias')}</span></p>")
+    else:
+      FolderParentId = HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Parent Id: <span style=\"color:#056AD2;\">{folders[i].get('parent_drive').get('id')}</span></p>")
+    DisplayList.extend([FolderParentType, FolderParentId, LineBreak])
+    clear_output(wait=True)
+    for item in DisplayList:
+      display(item)
+  display(widgets.Image(value=waiting_animation, width=100, height=100))
+  time.sleep(6)
+
+
+def FindDriveIdByFolder(Folder):
+  global access_token, request_meta_data
+  ParentId = Folder.get("id")
+  ParentList = []
+  while ParentId:
+    Request = request_meta_data.format(ParentId, access_token)
+    Response = SendRequest(Request, "id")
+    ParentList.append(Response)
+    if Response.get("parents"):
+      ParentId = Response.get("parents")[0]
+      time.sleep(2)
+    else:
+      Folder["parent_drive"] = Response
+      Folder["parent_list"] = ParentList
+      ParentId = None
+  return Folder
+
+
+def GetSearchResults():
+  global loading_animation, waiting_animation, folders
+  clear_output(wait=True)
+  FolderList = folders
+  Title = HTML(f"<h3 style=\"font-family:'Roboto Mono', monospace;\">Getting All Folder Ids within Parents...</h3>")
+  LoadingAnimation = widgets.Image(value=loading_animation, width=100, height=100)
+  LineBreak = HTML("<br>")
+  display(Title, LoadingAnimation)
+  time.sleep(3)
+  for i in range(len(FolderList)):
+    FolderList[i] = SearchAllFoldersInParent(FolderList[i], i+1)
+  clear_output(wait=True)
+  display(HTML(f"<h3 style=\"font-family: 'Roboto Mono', monospace;\">Getting All Folder Ids within Parents...<span style=\"color:#056AD2;\">[Completed!]</span></h3>"), HTML("<br>"))
+  for i in range(len(FolderList)):
+    display(HTML(f"<h4 style=\"font-family:'Roboto Mono', monospace;\">[Folder {i+1}]</h4>"))
+    display(HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Name: <span style=\"color:#056AD2;\">{FolderList[i].get('name')}</span></p>"))
+    display(HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Id: <span style=\"color:#056AD2;\">{FolderList[i].get('id')}</span></p>"))
+    display(HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Parent Type: <span style=\"color:#056AD2;\">{FolderList[i].get('parent_drive').get('name')}</span></p>"))
+    display(HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Parent Id: <span style=\"color:#056AD2;\">{FolderList[i].get('parent_drive').get('id')}</span></p>"))
+    display(HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Number of Folders within Parent: <span style=\"color:#056AD2;\">{len(FolderList[i].get('parent_drive').get('all_folder_ids'))}</span></p>"))
+    display(HTML("<br>"))
+  folders = FolderList
+  display(widgets.Image(value=waiting_animation, width=100, height=100))
+  time.sleep(6)
+
+
+def SearchAllFoldersInParent(Folder, FolderNumber):
+  global access_token, request_initial_search, request_search, loading_animation
+  FolderNumber = HTML(f"<h4 style=\"font-family:'Roboto Mono', monospace;\">[Folder {FolderNumber}]</h4>")
+  FolderName = HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Name: <span style=\"color:#056AD2;\">{Folder.get('name')}</span></p>")
+  FolderId = HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Id: <span style=\"color:#056AD2;\">{Folder.get('id')}</span></p>")
+  ParentType = HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Parent Type: <span style=\"color:#056AD2;\">{Folder.get('parent_drive').get('name')}</span></p>")
+  if Folder.get('parent_drive').get('name') == "My Drive":
+    ParentId = HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Parent Id: <span style=\"color:#056AD2;\">root</span></p>")
+  else:
+    ParentId = HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Parent Id: <span style=\"color:#056AD2;\">{Folder.get('parent_drive').get('id')}</span></p>")
+  LoadingAnimation = widgets.Image(value=loading_animation, width=100, height=100)
+  LineBreak = HTML("<br>")
+  clear_output(wait=True)
+  display(FolderNumber, FolderName, FolderId, ParentType, ParentId, LoadingAnimation)
+  ParentType_ = Folder.get("parent_drive").get("name")
+  if ParentType_ == "My Drive":
+    Grouping = "corpora=user"
+  else:
+    Grouping = "corpora=drive&driveId={}&includeItemsFromAllDrives=true&supportsAllDrives=true".format(Folder.get("parent_drive").get("id"))
+  Request = request_initial_search.format(Grouping, access_token)
+  Response = SendRequest(Request, "SearchAllFolders")
+  if Response.get("nextPageToken"):
+    NextPageToken = Response.get("nextPageToken")
+  else:
+    NextPageToken = None
+  SearchResultsList = Response.get("files")
+  FoldersFound = HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Folders Found: <span style=\"color:#056AD2;\">{len(Response.get('files'))}</span></p>")
+  TotalFolders = HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Total Folders: <span style=\"color:#056AD2;\">{len(SearchResultsList)}</span></p>")
+  clear_output(wait=True)
+  display(FolderNumber, FolderName, FolderId, ParentType, ParentId, FoldersFound, TotalFolders, LoadingAnimation)
+  time.sleep(2)
+  while NextPageToken:
+    Request = request_search.format(Grouping, NextPageToken, access_token)
+    Response = SendRequest(Request, "SearchAllFolders")
+    SearchResultsList.extend(Response.get("files"))
+    NextPageToken = Response.get("nextPageToken")
+    time.sleep(2)
+    FoldersFound = HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Folders Found: <span style=\"color:#056AD2;\">{len(Response.get('files'))}</span></p>")
+    TotalFolders = HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Total Folders: <span style=\"color:#056AD2;\">{len(SearchResultsList)}</span></p>")
+    clear_output(wait=True)
+    display(FolderNumber, FolderName, FolderId, ParentType, ParentId, FoldersFound, TotalFolders, LoadingAnimation)
+  Folder.get("parent_drive")["all_folder_ids"] = SearchResultsList
+  return Folder
+
+
+def BuildDirectoryTrees():
+  global folders, loading_animation, waiting_animation
+  clear_output(wait=True)
+  DisplayList = []
+  Title = HTML(f"<h3 style=\"font-family:'Roboto Mono', monospace;\">Bulding Directory Trees...</h3>")
+  LineBreak = HTML("<br>")
+  LoadingAnimation = widgets.Image(value=loading_animation, width=100, height=100)
+  DisplayList.extend([Title, LineBreak])
+  display(Title, LineBreak, LoadingAnimation)
+  time.sleep(2)
+  clear_output(wait=True)
+  display(Title, LineBreak)
+  for i in range(len(folders)):
+    FolderNumber = HTML(f"<h4 style=\"font-family:'Roboto Mono', monospace;\">[Folder 0{i+1}]</h4>")
+    FolderName = HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Name: <span style=\"color:#056AD2;\">{folders[i].get('name')}</span></p>")
+    IsOkDirectoryTree = HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Building Directory Tree...<span style=\"color:#056AD2;\">[Completed!]</span></p>")
+    display(FolderNumber, FolderName, LoadingAnimation)
+    DisplayList.extend([FolderNumber, FolderName, IsOkDirectoryTree])
+    DirectoryList = folders[i].get("parent_drive").get("all_folder_ids")
+    DirectoryTree = {"name": folders[i].get("parent_drive").get("name"), "id": folders[i].get("parent_drive").get("id")}
+    DirectoryTree = BuildDirectoryTree(DirectoryList, DirectoryTree)
+    folders[i].get("parent_drive").pop("all_folder_ids")
+    folders[i]["parent_list"] = folders[i].get("parent_list")[:-1][::-1]
+    folders[i].get("parent_drive")["directory_tree"] = DirectoryTree
+    clear_output(wait=True)
+    for item in DisplayList:
+      display(item)
+  display(widgets.Image(value=waiting_animation, width=100, height=100))
+  time.sleep(6)
+    
+
+def BuildDirectoryTree(DirectoryList, DirectoryTree):
+  for i in range(len(DirectoryList)):
+    if DirectoryList[i].get("parents"):
+      if DirectoryTree.get("id") in DirectoryList[i].get("parents"):
+        if DirectoryTree.get("child"):
+          if DirectoryList[i] not in DirectoryTree.get("child"):
+            DirectoryTree.get("child").append(DirectoryList[i])
+        else:
+            DirectoryTree["child"] = [DirectoryList[i]]
+        BuildDirectoryTree(DirectoryList, DirectoryTree.get("child")[-1])
+  return DirectoryTree
+
+
+def FilterTargetedDirectories():
+  global folders, loading_animation, waiting_animation
+  clear_output(wait=True)
+  DisplayList = []
+  Title = HTML(f"<h3 style=\"font-family:'Roboto Mono', monospace;\">Filtering Directory Tree for Targeted Directories...</h3>")
+  LineBreak = HTML("<br>")
+  LoadingAnimation = widgets.Image(value=loading_animation, width=100, height=100)
+  DisplayList.extend([Title, LineBreak])
+  display(Title, LineBreak, LoadingAnimation)
+  time.sleep(2)
+  clear_output(wait=True)
+  display(Title, LineBreak)
+  for i in range(len(folders)):
+    FolderNumber = HTML(f"<h4 style=\"font-family:'Roboto Mono', monospace;\">[Folder 0{i+1}]</h4>")
+    FolderName = HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Name: <span style=\"color:#056AD2;\">{folders[i].get('name')}</span></p>")
+    IsOkDirectoryTree = HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Filtering Directory Tree for Targeted Directory...<span style=\"color:#056AD2;\">[Completed!]</span></p>")
+    display(FolderNumber, FolderName, LoadingAnimation)
+    DisplayList.extend([FolderNumber, FolderName, IsOkDirectoryTree])
+    Count = 0
+    DirectoryTree = folders[i].get("parent_drive").get("directory_tree")
+    ParentList = folders[i].get("parent_list")
+    while Count < len(ParentList):
+      DirectoryTree = FilterTargetedDirectory(ParentList, DirectoryTree)
+      Count += 1
+    folders[i].get("parent_drive")["directory_tree"] = DirectoryTree
+    clear_output(wait=True)
+    for item in DisplayList:
+      display(item)
+  display(widgets.Image(value=waiting_animation, width=100, height=100))
+  time.sleep(6)
+
+
+def FilterTargetedDirectory(ParentList, DirectoryTree):
+  for i in range(len(ParentList)):
+    for j in range(len(DirectoryTree.get("child"))):
+      if ParentList[i].get("id") == DirectoryTree.get("child")[j].get("id"):
+        FilteredDirectory = DirectoryTree.get("child")[j]
+        return FilteredDirectory
+
+
+def ExtractFolderIds():
+  global folders, folder_ids, shortcut_ids, temp_shortcut_ids, loading_animation, waiting_animation
+  clear_output(wait=True)
+  DisplayList = []
+  Title = HTML(f"<h3 style=\"font-family:'Roboto Mono', monospace;\">Extracting Children in Targeted Directories...</h3>")
+  LineBreak = HTML("<br>")
+  LoadingAnimation = widgets.Image(value=loading_animation, width=100, height=100)
+  DisplayList.extend([Title, LineBreak])
+  display(Title, LineBreak, LoadingAnimation)
+  time.sleep(2)
+  clear_output(wait=True)
+  display(Title, LineBreak)
+  for i in range(len(folders)):
+    FolderNumber = HTML(f"<h4 style=\"font-family:'Roboto Mono', monospace;\">[Folder 0{i+1}]</h4>")
+    FolderName = HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Name: <span style=\"color:#056AD2;\">{folders[i].get('name')}</span></p>")
+    IsOkDirectory = HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Extracting Children in Targeted Directory...<span style=\"color:#056AD2;\">[Completed!]</span></p>")
+    display(FolderNumber, FolderName, LoadingAnimation)
+    DisplayList.extend([FolderNumber, FolderName, IsOkDirectory])
+    folder_ids, shortcut_ids = [], []
+    DirectoryTree = folders[i].get("parent_drive").get("directory_tree")
+    ExtractAllIds(DirectoryTree)
+    folders[i]["folder_ids"] = folder_ids
+    folders[i]["shortcut_ids"] = [] # shortcut_ids
+    folder_ids, shortcut_ids = [], []
+    clear_output(wait=True)
+    for item in DisplayList:
+      display(item)
+  display(widgets.Image(value=waiting_animation, width=100, height=100))
+  time.sleep(6)
+
+
+def ExtractAllIds(DictonaryOrList):
+  if type(DictonaryOrList) == dict:
+    ExtractIdsFromDictionary(DictonaryOrList)
+  elif type(DictonaryOrList) == list:
+    ExtractIdsFromList(DictonaryOrList)
+
+
+def ExtractIdsFromList(DirectoryList):
+  for i in range(len(DirectoryList)):
+    if type(DirectoryList[i]) == dict:
+      ExtractIdsFromDictionary(DirectoryList[i])
+
+
+def ExtractIdsFromDictionary(DirectoryDictionary):
+  global folder_ids, shortcut_ids
+  if DirectoryDictionary.get("mimeType") == "application/vnd.google-apps.folder":
+    FolderNameAndId = {"name": DirectoryDictionary.get("name"), "id": DirectoryDictionary.get("id")}
+    if FolderNameAndId not in folder_ids:
+      folder_ids.append(FolderNameAndId)
+  else:
+    if DirectoryDictionary.get("shortcutDetails"):
+      if DirectoryDictionary.get("shortcutDetails").get("targetMimeType") == "application/vnd.google-apps.folder":
+        ShortcutNameAndId = {"name": DirectoryDictionary.get("name"), "id": DirectoryDictionary.get("shortcutDetails").get("targetId")}
+        # if ShortcutNameAndId not in folder_ids:
+        #   folder_ids.append(ShortcutNameAndId)
+        if ShortcutNameAndId not in shortcut_ids:
+          shortcut_ids.append(ShortcutNameAndId)
+  if DirectoryDictionary.get("child"):
+    ExtractAllIds(DirectoryDictionary.get("child"))
+
+
+def GetAllShortcutCildren():
+  global folders, loading_animation, waiting_animation
+  clear_output(wait=True)
+  Title = HTML(f"<h3 style=\"font-family:'Roboto Mono', monospace;\">Getting Children of Shortcuts...</h3>")
+  LoadingAnimation = widgets.Image(value=loading_animation, width=100, height=100)
+  LineBreak = HTML("<br>")
+  display(Title, LoadingAnimation)
+  time.sleep(3)
+  for i in range(len(folders)):
+    if folders[i].get("shortcut_ids"):
+      folders[i] = GetShortcutCildren(folders[i], i+1)
+  clear_output(wait=True)
+  display(HTML(f"<h3 style=\"font-family: 'Roboto Mono', monospace;\">Getting Children of Shortcuts...<span style=\"color:#056AD2;\">[Completed!]</span></h3>"), HTML("<br>"))
+  for i in range(len(folders)):
+    display(HTML(f"<h4 style=\"font-family:'Roboto Mono', monospace;\">[Folder {i+1}]</h4>"))
+    display(HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Name: <span style=\"color:#056AD2;\">{folders[i].get('name')}</span></p>"))
+    display(HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Id: <span style=\"color:#056AD2;\">{folders[i].get('id')}</span></p>"))
+    if folders[i].get("shortcut_ids"):
+      display(HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Number of Children of Shortcuts: <span style=\"color:#056AD2;\">{len(folders[i].get('shortcut_ids'))}</span></p>"))
+    else:
+      display(HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Number of Children of Shortcuts: <span style=\"color:#056AD2;\">No Shortcuts</span></p>"))
+    display(HTML("<br>"))
+  display(widgets.Image(value=waiting_animation, width=100, height=100))
+  time.sleep(6)
+
+
+def GetShortcutCildren(Folder, FolderNumber):
+  global access_token, children_of_shortcuts, request_get_children, loading_animation
+  FolderNumber = HTML(f"<h4 style=\"font-family:'Roboto Mono', monospace;\">[Folder {FolderNumber}]</h4>")
+  FolderName = HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Name: <span style=\"color:#056AD2;\">{Folder.get('name')}</span></p>")
+  FolderId = HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Id: <span style=\"color:#056AD2;\">{Folder.get('id')}</span></p>")
+  NumberOfShortcuts = HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Number of Shortcuts: <span style=\"color:#056AD2;\">{len(Folder.get('shortcut_ids'))}</span></p>")
+  LoadingAnimation = widgets.Image(value=loading_animation, width=100, height=100)
+  LineBreak = HTML("<br>")
+  clear_output(wait=True)
+  display(FolderNumber, FolderName, FolderId, NumberOfShortcuts, LoadingAnimation)
+  children_of_shortcuts = []
+  for Shortcut in Folder.get('shortcut_ids'):
+    GetChildren(Shortcut.get("id"), FolderNumber, FolderName, FolderId, NumberOfShortcuts, LoadingAnimation)
+  TempList = []
+  for Child in children_of_shortcuts:
+    if Child.get("shortcutDetails"):
+      TempList.append({"name": Child.get("name"), "id": Child.get("shortcutDetails").get("targetId")})
+    else:
+      TempList.append({"name": Child.get("name"), "id": Child.get("id")})
+  children_of_shortcuts = TempList
+  TempList = []
+  for Child in children_of_shortcuts:
+    if Child not in TempList:
+      TempList.append(Child)
+  children_of_shortcuts = TempList
+  Folder.get("shortcut_ids").extend(children_of_shortcuts)
+  return Folder
+
+
+def GetChildren(ParentId, FolderNumber, FolderName, FolderId, NumberOfShortcuts, LoadingAnimation):
+  global request_get_children, access_token, children_of_shortcuts, scanned_count
+  Children = []
+  Grouping = "corpora=allDrives&includeItemsFromAllDrives=true&supportsAllDrives=true"
+  Request = request_get_children.format(Grouping, ParentId, "", access_token)
+  Response = SendRequest(Request, "GetChildren")
+  if Response.get("nextPageToken"):
+    NextPageToken = Response.get("nextPageToken")
+  else:
+    NextPageToken = None
+  if Response.get("files"):
+    FilesFound = Response.get("files")
+    Children.extend(FilesFound)
+  else:
+    FilesFound = []
+  scanned_count += 1
+  ScannedFolders = HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Number of Folders Scanned: <span style=\"color:#056AD2;\">{str(scanned_count)}</span></p>")
+  ChildrenFound = HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Number of Children Found: <span style=\"color:#056AD2;\">{len(FilesFound)}</span></p>")
+  TotalChildren = HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Total Number of Children: <span style=\"color:#056AD2;\">{len(Children) + len(children_of_shortcuts)}</span></p>")
+  clear_output(wait=True)
+  display(FolderNumber, FolderName, FolderId, NumberOfShortcuts, ScannedFolders, ChildrenFound, TotalChildren, LoadingAnimation)
+  if NextPageToken:
+    time.sleep(2)
+  while NextPageToken:
+    Request = request_get_children.format(Grouping, ParentId, "&pageToken={}".format(NextPageToken), access_token)
+    Response = SendRequest(Request, "GetChildren")
+    if Response.get("files"):
+      FilesFound = Response.get("files")
+      Children.extend(Response.get("files"))
+    else:
+      FilesFound = []
+    NextPageToken = Response.get("nextPageToken")
+    scanned_count += 1
+    ScannedFolders = HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Number of Folders Scanned: <span style=\"color:#056AD2;\">{str(scanned_count)}</span></p>")
+    ChildrenFound = HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Folders Found: <span style=\"color:#056AD2;\">{len(FilesFound)}</span></p>")
+    TotalChildren = HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Total Folders: <span style=\"color:#056AD2;\">{len(Children) + len(children_of_shortcuts)}</span></p>")
+    clear_output(wait=True)
+    display(FolderNumber, FolderName, FolderId, NumberOfShortcuts, ScannedFolders, ChildrenFound, TotalChildren, LoadingAnimation)
+    time.sleep(2)
+  TempList = []
+  for Child in Children:
+    if Child not in TempList:
+      TempList.append(Child)
+  Children = TempList
+  children_of_shortcuts.extend(Children)
+  time.sleep(2)
+  for Child in Children:
+    if Child.get("mimeType") == "application/vnd.google-apps.folder":
+      GetChildren(Child.get("id"), FolderNumber, FolderName, FolderId, NumberOfShortcuts, LoadingAnimation)
+    # else:
+    #   if Child.get("shortcutDetails"):
+    #     if Child.get("shortcutDetails").get("targetMimeType") == "application/vnd.google-apps.folder":
+    #       GetChildren(Child.get("shortcutDetails").get("targetId"), FolderNumber, FolderName, FolderId, NumberOfShortcuts, LoadingAnimation)
+
+
+def FinalizeIds():
+  global folders, loading_animation, include_shortcuts, all_ids
+  clear_output(wait=True)
+  Title = HTML(f"<h3 style=\"font-family:'Roboto Mono', monospace;\">Finalizing Id Lists...</h3>")
+  LoadingAnimation = widgets.Image(value=loading_animation, width=100, height=100)
+  LineBreak = HTML("<br>")
+  display(Title, LoadingAnimation)
+  for Folder in folders:
+    FolderIdList = []
+    for item in Folder.get("folder_ids"):
+      if item.get("id") not in FolderIdList:
+        FolderIdList.append(item.get("id"))
+    if include_shortcuts:
+      for item in Folder.get("shortcut_ids"):
+        if item.get("id") not in FolderIdList:
+          FolderIdList.append(item.get("id"))
+    ChunkSize = 120
+    if len(FolderIdList) > ChunkSize:
+      FolderIdList = SplitThisInto(FolderIdList, ChunkSize)
+    else:
+      FolderIdList = [FolderIdList]
+    all_ids[f"{Folder.get('id')}"] = FolderIdList
+
+
+def SplitThisInto(IdList, ChunkSize):
+  NumberOfListsNeeded = len(IdList)/ChunkSize
+  if int(NumberOfListsNeeded) < NumberOfListsNeeded:
+    NumberOfListsNeeded = int(NumberOfListsNeeded) + 1
+  else:
+    NumberOfListsNeeded = int(NumberOfListsNeeded)
+  FolderIdList = []
+  for _ in range(NumberOfListsNeeded):
+    TempIdList = IdList[0:ChunkSize]
+    FolderIdList.append(TempIdList)
+    IdList = IdList[ChunkSize:]
+  return FolderIdList
+
+
+def Finish():
+  global folders, loading_animation, all_ids, crypt_secret, web_link, output_styles, output_body, output_scripts
+  clear_output(wait=True)
+  Title = HTML(f"<h3 style=\"font-family:'Roboto Mono', monospace;\">Finishing Up...</h3>")
+  LoadingAnimation = widgets.Image(value=loading_animation, width=100, height=100)
+  LineBreak = HTML("<br>")
+  display(Title, LoadingAnimation)
+  display_code = EncryptData(str(json.dumps(all_ids)), crypt_secret)
+  with open('id-list-for-goindex-extended.txt', 'w') as the_file:
+    the_file.write(display_code)
+  # DLink = subprocess.check_output("curl -H \"Max-Downloads: 1\" -H \"Max-Days: 1\" --upload-file id-list-for-goindex-extended.txt https://transfer.sh/id-list-for-goindex-extended.txt", shell=True).decode().split("transfer.sh")
+  # download_link = "transfer.sh/get".join(DLink)
+  DLink = subprocess.Popen(["python", "/content/static_server.py", "8888"])
+  download_link = web_link + "id-list-for-goindex-extended.txt"
+  clear_output()
+  print("Loading...")
+  time.sleep(1)
+  clear_output()
+  display(HTML(output_styles), HTML(eval('f' + repr(output_body))), HTML(output_scripts))
+
+
+def EncryptData(Data, Passphrase):
+  global BLOCK_SIZE
+  IV = Random.new().read(BLOCK_SIZE)
+  aes = AES.new(Passphrase, AES.MODE_CFB, IV, segment_size=128)
+  return base64.b64encode(IV + aes.encrypt(PadData(Data))).decode()
+
+
+def PadData(Data):
+  Length = 16 - (len(Data) % 16)
+  return Data + chr(Length)*Length
+
+
+def SendRequest(Request, Verification):
+  for attempt in range(5):
+    Response = subprocess.check_output(Request, shell=True).decode()
+    Response = json.loads(Response)
+    if Verification == "SearchAllFolders":
+      if Response.get("nextPageToken") or Response.get("files"):
+        break
+    elif Verification == "GetChildren":
+      if not Response.get("error"):
+        break
+    else:
+      if Response.get(Verification):
+        break
+    time.sleep(attempt*2)
+  return Response
+
+
+def Exit():
+  global include_shortcuts, temp_shortcut_ids
+  clear_output(wait=True)
+  display(HTML(f"<h3 style=\"font-family:'Roboto Mono', monospace;\">Exiting...[Done!]</h3>"))
+  if temp_shortcut_ids:
+    display(HTML("<br>"), HTML(f"<h4 style=\"font-family:'Roboto Mono', monospace;\">[Check Include Shortcuts Checkbox]</h4>"))
+    display(HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Seems like you have added a shared folder to index. To process this, please check that checkbox and run again!</p>"))
+  else:
+    display(HTML("<br>"), HTML(f"<h4 style=\"font-family:'Roboto Mono', monospace;\">[No FOLDER root type Found]</h4>"))
+    display(HTML(f"<p style=\"font-family:'Roboto Mono', monospace;\">Dude, you don't need to run this if you didn't add any folder to index!</p>"))
+
+
+def main():
+  global client_id, client_secret, refresh_token, access_token, include_shortcuts
+  AssignValues()
+  if not access_token:
+    GetAccessToken()
+  GetFolders()
+  if folders:
+    FindDrives()
+    GetSearchResults()
+    BuildDirectoryTrees()
+    FilterTargetedDirectories()
+    ExtractFolderIds()
+  else:
+    if temp_shortcut_ids:
+      if include_shortcuts:
+        pass
+      else:
+        Exit()
+    else:
+      Exit()    
+  if include_shortcuts:
+    folders.extend(temp_shortcut_ids)
+    if folders:
+      GetAllShortcutCildren()
+  if folders:
+    FinalizeIds()
+    Finish()
+
+
+# ============== EXAMPLE CODE ==============
+index_code_ex = '''const authConfig = {
+  "siteName": "GoIndex Extended", // WebSite Name
+  "siteIcon": "https://raw.githubusercontent.com/cheems/goindex-extended/master/images/favicon-x.png", //or fevicon-x-light.png
+  "version": "1.3.3", // VersionControl, do not modify manually
+  "client_id": "", // Client ID
+  "client_secret": "", // Client Secret
+  "refresh_token": "", // Refresh Token
+  "roots": [
+    {
+      id: "root",
+      name: "Personal Drive"'''
+# =========== END OF EXAMPLE CODE ==========
+# =============== PREPARATION ==============
+include_shortcuts = True
+index_code = widgets.Textarea(placeholder=index_code_ex, rows=10, layout=widgets.Layout(width="98%"))
+if not os.path.isfile("loading.gif"):
+  !wget https://raw.githubusercontent.com/cheems/goindex-extended/master/images/loading.gif &> /dev/null
+if not os.path.isfile("waiting.gif"):
+  !wget https://raw.githubusercontent.com/cheems/goindex-extended/master/images/waiting.gif &> /dev/null
+if not os.path.isfile("static_server.py"):
+  !wget -O static_server.py https://gist.githubusercontent.com/cheems/29a79be96e79f9e3dc5d0e74c69e56bb/raw/9c06f257ec3a5e06ca559d8198e3add0a454b5b7/cherrypy_static_server.py &> /dev/null
+loading_animation = open('loading.gif', 'rb').read()
+waiting_animation = open('waiting.gif', 'rb').read()
+display(HTML(f"<h3 style=\"font-family:'Roboto Mono', monospace;\">Installing Required Packages...</h3>"))
+display(widgets.Image(value=loading_animation, width=100, height=100))
+try:
+  import cherrypy
+except ImportError as e:
+  !pip install CherryPy &> /dev/null
+web_link = eval_js("google.colab.kernel.proxyPort(8888)")
+try:
+  import Crypto
+except ImportError as e:
+  !pip install pycrypto &> /dev/null
+  from Crypto import Random
+  from Crypto.Cipher import AES
+BLOCK_SIZE = 16
+# =========== END OF PREPARATION ===========
+# =============== HTML OUTPUT ==============
+output_styles=\
+'''
+<link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.1.3/css/bootstrap.min.css'><style>body,html{height:100%}body{font-family:'Roboto Mono',monospace;padding:1rem 1rem 12rem;background-color:#fff}.btn{font-size:10pt;font-weight:700}.btn-outline-primary{color:#fff;background-color:#056ad2;background-image:none;border-color:#056ad2}.btn-outline-primary:hover{color:#fff;background-color:#0559b0;border-color:#0559b0}.btn-outline-primary:hover{color:#fff}#copy_button{position:relative;overflow:visible}#copy_tooltip{display:block;font-size:100%;position:absolute;background:#04488f;color:#fff;padding:.5rem 1rem;border-radius:4px;top:0;left:20px;right:20px;margin:auto;opacity:0}#copy_tooltip.active{-webkit-animation:slide-up .15s cubic-bezier(.51,.92,.265,1.55) both;animation:slide-up .15s cubic-bezier(.51,.92,.265,1.55) both}#copy_tooltip.inactive{-webkit-animation:slide-up .1s cubic-bezier(.25,.46,.45,.94) reverse both;animation:slide-up .1s cubic-bezier(.25,.46,.45,.94) reverse both}#copy_tooltip:after{content:"";position:absolute;top:98%;left:50%;margin-left:-8px;width:0;height:0;border-top:8px solid #1a3ca2;border-right:8px solid transparent;border-left:8px solid transparent}@-webkit-keyframes slide-up{0%{transform:translateY(0) scale(.8);opacity:0}100%{transform:translateY(-35px) scale(1);opacity:1}}@keyframes slide-up{0%{transform:translateY(0) scale(.8);opacity:0}100%{transform:translateY(-35px) scale(1);opacity:1}}</style>
+'''
+output_body=\
+'''
+<form class="col-m-8"><p><textarea readonly id="copy_textarea" class="form-control form-control-lg" style="height: 200px; font-size: 15px" row="3">{display_code}</textarea></p><p><button data-clipboard-target="#copy_textarea" onclick="CopyMe(`{display_code}`)" class="btn btn-outline-primary btn-lg" type="button" id="copy_button">Copy to Clipboard<span id="copy_tooltip" aria-live="assertive" role="tooltip"></span></button>
+<button class="btn btn-outline-primary btn-lg" onclick=" window.open('{download_link}','_blank')" type="button" id="download_button">Download (.txt)</button></p></form>
+'''
+output_scripts=\
+'''
+<script src='https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js'></script>
+<script>var active=!1;function copyMessageTooltip(e,o){active=!0,$("#copy_tooltip").text(o).addClass("active"),e.attr("aria-describedby","copy_tooltip"),setTimeout(function(){$("#copy_tooltip").removeClass("active").addClass("inactive"),$("#copy_tooltip").replaceWith($("#copy_tooltip").clone(!0)),e.removeAttr("aria-describedby"),setTimeout(function(){$("#copy_tooltip").removeClass("inactive").text(""),active=!1},100)},2e3)}var o=$("#copy_button");function CopyMe(e){var t=document.createElement("input");t.value=e,document.body.appendChild(t),t.select(),document.execCommand("copy"),document.body.removeChild(t),copyMessageTooltip(o,"Copied!")}</script>
+'''
+# =========== END OF HTML OUTPUT ===========
+# ============== DEFINING VARS =============
+client_id = ""
+client_secret = ""
+refresh_token = ""
+crypt_secret = ""
+access_token = ""
+roots = []
+folders = []
+folder_ids = []
+shortcut_ids = []
+temp_shortcut_ids = []
+children_of_shortcuts = []
+scanned_count = 0
+all_ids = {}
+# ========== END OF DEFINING VARS ==========
+# ================ REQUESTS ================
+request_access_token = '''curl \
+  --request POST \
+  --data 'client_id={}&client_secret={}&refresh_token={}&grant_type=refresh_token' \
+  https://accounts.google.com/o/oauth2/token'''
+
+request_meta_data = '''curl \
+  'https://www.googleapis.com/drive/v3/files/{}?supportsAllDrives=true&supportsTeamDrives=true&fields=parents%2C%20name%2C%20id' \
+  --header 'Authorization: Bearer {}' \
+  --header 'Accept: application/json' \
+  --compressed'''
+
+request_initial_search = '''curl \
+  "https://www.googleapis.com/drive/v3/files?{}&q=mimeType%20%3D%20'application%2Fvnd.google-apps.folder'%20or%20mimeType%20%3D%20'application%2Fvnd.google-apps.shortcut'&fields=nextPageToken%2C%20files(id%2C%20name%2C%20mimeType%2C%20size%20%2C%20modifiedTime%2C%20parents%2C%20shortcutDetails)&pageSize=1000" \
+  --header 'Authorization: Bearer {}' \
+  --header 'Accept: application/json' \
+  --compressed'''
+
+request_search = '''curl \
+  "https://www.googleapis.com/drive/v3/files?{}&q=mimeType%20%3D%20'application%2Fvnd.google-apps.folder'%20or%20mimeType%20%3D%20'application%2Fvnd.google-apps.shortcut'&fields=nextPageToken%2C%20files(id%2C%20name%2C%20mimeType%2C%20size%20%2C%20modifiedTime%2C%20parents%2C%20shortcutDetails)&pageSize=1000&pageToken={}" \
+  --header 'Authorization: Bearer {}' \
+  --header 'Accept: application/json' \
+  --compressed'''
+
+request_get_children = '''curl \
+    "https://www.googleapis.com/drive/v3/files?{}&q=(mimeType%20%3D%20'application%2Fvnd.google-apps.folder'%20or%20mimeType%20%3D%20'application%2Fvnd.google-apps.shortcut')%20and%20'{}'%20in%20parents&fields=nextPageToken%2C%20files(id%2C%20name%2C%20mimeType%2C%20size%20%2C%20modifiedTime%2C%20parents%2C%20shortcutDetails)&pageSize=1000{}" \
+    --header 'Authorization: Bearer {}' \
+    --header 'Accept: application/json' \
+    --compressed'''
+# ============= END OF REQUESTS ============
+
+GetInput()

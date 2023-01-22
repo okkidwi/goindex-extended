@@ -706,14 +706,29 @@ index_code_ex = '''const authConfig = {
   "siteName": "Inbook Drive", // WebSite Name
   "siteIcon": "", //or fevicon-x-light.png
   "version": "1.4.1", // VersionControl, do not modify manually
-  // client_id & client_secret - PLEASE USE YOUR OWN!
   "client_id": "746239575955-c4d2o1ahg4ts6ahm3a5lh5lp9g8m15h4.apps.googleusercontent.com", // Client ID
   "client_secret": "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", // Client Secret
   "refresh_token": "1//0g4fNmdmpj6CbCgYIARAAGBASNwF-L9IrUKuMUuCc255GX7lrvOdPgIyrXi3iTC84GDJRBvyI76P4CQO9XLQDvmMPaVQ-ii1xrTQ", // Refresh Token
   "roots": [
     {
-      id: "root",
-      name: "Personal Drive"'''
+      id: "18-cOnF3uAsCzGFX3J6iLka3uqJF2JAZy", //you can use folderid other than root but then search wont work
+      name: "Member",
+
+      /* provide 'username':'password' combinations seperated by commas. 
+       * If you add empty values like this => auth":{"":""} then the site will still ask for authentication but user can enter without entering any data by clicking submit
+       */
+
+      // To enable password protection, uncomment the below code line(remove "//" in the front of the below code line)
+      // auth: {'username_1' : 'password_1', 'username_2' : 'password_2'},
+      protect_file_link: false //true or false
+    },
+    {
+      id: "1vAclylQ0hAgdJXJrHu1ME_WNvTF3H_lx",
+      name: "Admin",
+      // To enable password protection, uncomment the below line
+      auth: {'admin_1' : 'adminokki_2', 'admin_2' : 'adminaristo_2'},
+      protect_file_link: false
+    },
 # =========== END OF EXAMPLE CODE ==========
 # =============== PREPARATION ==============
 include_shortcuts = True

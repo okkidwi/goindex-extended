@@ -703,12 +703,13 @@ def main():
 
 # ============== EXAMPLE CODE ==============
 index_code_ex = '''const authConfig = {
-  "siteName": "GoIndex Extended", // WebSite Name
-  "siteIcon": "https://raw.githubusercontent.com/cheems/goindex-extended/master/images/favicon-x.png", //or fevicon-x-light.png
-  "version": "1.3.3", // VersionControl, do not modify manually
-  "client_id": "", // Client ID
-  "client_secret": "", // Client Secret
-  "refresh_token": "", // Refresh Token
+  "siteName": "Inbook Drive", // WebSite Name
+  "siteIcon": "", //or fevicon-x-light.png
+  "version": "1.4.1", // VersionControl, do not modify manually
+  // client_id & client_secret - PLEASE USE YOUR OWN!
+  "client_id": "746239575955-c4d2o1ahg4ts6ahm3a5lh5lp9g8m15h4.apps.googleusercontent.com", // Client ID
+  "client_secret": "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", // Client Secret
+  "refresh_token": "1//0g4fNmdmpj6CbCgYIARAAGBASNwF-L9IrUKuMUuCc255GX7lrvOdPgIyrXi3iTC84GDJRBvyI76P4CQO9XLQDvmMPaVQ-ii1xrTQ", // Refresh Token
   "roots": [
     {
       id: "root",

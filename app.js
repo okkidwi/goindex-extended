@@ -5916,9 +5916,6 @@ function append_files_to_list(path, files) {
 	          <div class="mdui-col-sm-3 mdui-text-right">${item["modifiedTime"]}</div>
 	          <div class="mdui-col-sm-2 mdui-text-right">${item["size"]}</div>
 	          </a>
-            <div class="mdui-col-sm-2 mdui-text-right dummyclass">
-	            <button onclick="window.open('${ddl_link}','_self')" class="mdui-textfield-icon mdui-btn mdui-btn-icon dummyclass" style="float: right;">
-                <i class="mdui-icon material-icons dummyclass">file_download</i>
               </button>
               <button onclick="window.open('${p}','_blank')" class="mdui-textfield-icon mdui-btn mdui-btn-icon dummyclass" style="float: right;">
                 <i class="mdui-icon material-icons dummyclass">launch</i>
@@ -6206,11 +6203,6 @@ function file_code(path) {
 	<label class="mdui-textfield-label">File Name</label>
 	<input class="mdui-textfield-input" type="text" value="${file_name}"/>
 </div>
-<div class="mdui-textfield">
-	<label class="mdui-textfield-label">Download Link</label>
-	<input class="mdui-textfield-input" type="text" value="${href}"/>
-</div>
-<a href="${href}" class="mdui-fab mdui-fab-fixed mdui-ripple mdui-color-theme-accent"><i class="mdui-icon material-icons">file_download</i></a>
 
 <script src="//cdn.jsdelivr.net/gh/cheems/goindex-extended/js/ace.js"></script>
 <script src="//cdn.jsdelivr.net/gh/cheems/goindex-extended/js/ext-language_tools.js"></script>
@@ -6279,29 +6271,7 @@ function file_video(path) {
 	  <label class="mdui-textfield-label">File Name</label>
 	  <input class="mdui-textfield-input" type="text" value="${file_name}"/>
   </div>
-	<div class="mdui-textfield">
-	  <label class="mdui-textfield-label">Download Link</label>
-	  <input class="mdui-textfield-input" type="text" value="${url}"/>
-	</div>
-</div>
-<a href="${url}" class="mdui-fab mdui-fab-fixed mdui-ripple mdui-color-theme-accent"><i class="mdui-icon material-icons">file_download</i></a>
-	`;
-  $("#content").html(content);
-  $("#copy-link").on("click", () => {
-    copyToClipboard(url);
-    mdui.snackbar("Copied to clipboard!");
-  });
-  const dp = new DPlayer({
-    container: document.getElementById("dplayer"),
-    loop: false,
-    screenshot: true,
-    preload: "auto",
-    video: {
-      quality: [{ url: url, type: "normal" }],
-      autoplay: true,
-      defaultQuality: 0,
-    },
-  });
+
 }
 function file_audio(path) {
   var url = window.location.origin + path;
@@ -6318,41 +6288,7 @@ function file_audio(path) {
 	  <label class="mdui-textfield-label">File Name</label>
 	  <input class="mdui-textfield-input" type="text" value="${file_name}"/>
   </div>
-	<div class="mdui-textfield">
-	  <label class="mdui-textfield-label">Download Link</label>
-	  <input class="mdui-textfield-input" type="text" value="${url}"/>
-	</div>
-</div>
-<a href="${url}" class="mdui-fab mdui-fab-fixed mdui-ripple mdui-color-theme-accent"><i class="mdui-icon material-icons">file_download</i></a>
-	`;
-  $("#content").html(content);
-}
-function file_pdf(path) {
-  const url = window.location.origin + path;
-  const inline_url = `${url}?inline=true`;
-  const file_name = decodeURI(
-    path.slice(path.lastIndexOf("/") + 1, path.length)
-  );
-  var display_name = decodeURIComponent(path.trim("/").split("/").slice(-1)[0].replaceAll("%5C%5C", "%5C"));
-  var content = `
-	<object data="${inline_url}" type="application/pdf" name="${file_name}" style="width:100%;height:94vh;"><embed src="${inline_url}" type="application/pdf"/></object>
-  <br>
-	<!-- ???? -->
-  <div class="mdui-textfield">
-	  <label class="mdui-textfield-label">File Name</label>
-	  <input class="mdui-textfield-input" type="text" value="${display_name}"/>
-  </div>
-	<div class="mdui-textfield">
-	  <label class="mdui-textfield-label">Download Link</label>
-	  <input class="mdui-textfield-input" type="text" value="${url}"/>
-	</div>
-  <a href="${url}" class="mdui-fab mdui-fab-fixed mdui-ripple mdui-color-theme-accent"><i class="mdui-icon material-icons">file_download</i></a>
-	`;
-  $("#content")
-    .removeClass("mdui-container")
-    .addClass("mdui-container-fluid")
-    .css({ padding: 0 })
-    .html(content);
+
 }
 function file_image(path) {
   var url = window.location.origin + path;
@@ -6411,24 +6347,7 @@ function file_image(path) {
 	  <label class="mdui-textfield-label">File Name</label>
 	  <input class="mdui-textfield-input" type="text" value="${file_name}"/>
   </div>
-	<div class="mdui-textfield">
-	  <label class="mdui-textfield-label">Download Link</label>
-	  <input class="mdui-textfield-input" type="text" value="${url}"/>
-	</div>
-        <br>
-</div>
-<a href="${url}" class="mdui-fab mdui-fab-fixed mdui-ripple mdui-color-theme-accent"><i class="mdui-icon material-icons">file_download</i></a>
-    `;
-  $("#content").html(content);
-  $("#leftBtn, #rightBtn").click((e) => {
-    let target = $(e.target);
-    if (["I", "SPAN"].includes(e.target.nodeName)) {
-      target = $(e.target).parent();
-    }
-    const filepath = target.attr("data-filepath");
-    const direction = target.attr("data-direction");
-    file(filepath);
-  });
+
 }
 function utc2local(utc_datetime) {
   var T_pos = utc_datetime.indexOf("T");
